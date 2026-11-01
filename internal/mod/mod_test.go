@@ -54,11 +54,11 @@ func TestTGARoundTrip(t *testing.T) {
 
 func TestVisual(t *testing.T) {
 	cases := map[string]string{
-		"שלום":        "םולש",
-		"גל 12":       "12 לג",
-		"(כן)":        "(ןכ)",
-		"אב|גד":       "בא|דג",
-		"שיא: 1,200":  "1,200 :איש",
+		"שלום":       "םולש",
+		"גל 12":      "12 לג",
+		"(כן)":       "(ןכ)",
+		"אב|גד":      "בא|דג",
+		"שיא: 1,200": "1,200 :איש",
 	}
 	for in, want := range cases {
 		if got := Visual(in); got != want {
@@ -72,5 +72,17 @@ func TestIniKeepsExtraKeys(t *testing.T) {
 	back := ParseIni(WriteIni(s))
 	if back[2].Width != 3 || len(back[2].Extra) != 1 || back[2].Extra[0][1] != "-1" {
 		t.Fatalf("%+v", back[2])
+	}
+}
+
+func TestUpscaleFactorRespectsEngineLimit(t *testing.T) {
+	for _, c := range []struct{ w, h, want int }{{256, 256, 4}, {510, 64, 4}, {512, 256, 2}, {762, 762, 2}, {1000, 1000, 2}, {1024, 256, 1}} {
+		s := upscaleFactor(c.w, c.h)
+		if s != c.want {
+			t.Errorf("%dx%d: %d, want %d", c.w, c.h, s, c.want)
+		}
+		if s > 1 && max(c.w, c.h)*s+3 > maxTextureSide {
+			t.Errorf("%dx%d exceeds the limit at %d", c.w, c.h, s)
+		}
 	}
 }

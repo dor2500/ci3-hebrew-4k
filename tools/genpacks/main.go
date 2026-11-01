@@ -357,4 +357,3 @@ func arp(w wave, notes []float64, step, vol float64) []layer {
 	}
 	return out
 }
-

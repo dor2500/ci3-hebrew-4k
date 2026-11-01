@@ -52,6 +52,7 @@ type theme struct {
 type Config struct {
 	Mode, Theme, Sound int
 	VoiceOff           bool
+	UpscaleOff         bool
 }
 
 type App struct {
@@ -66,6 +67,7 @@ type App struct {
 	bg, logo, ship *ebiten.Image
 	previews       []*ebiten.Image
 	status         string
+	upscaleNote    string
 	failure        string
 	building       bool
 	done           chan error
@@ -223,7 +225,7 @@ func (a *App) build() error {
 	if err != nil {
 		return err
 	}
-	if err := os.WriteFile(filepath.Join(game, "CI3Xmas.exe"), exe, 0o755); err != nil {
+	if err := os.WriteFile(filepath.Join(game, "CI3Xmas.exe"), mod.HookUpscaleLoader(exe), 0o755); err != nil {
 		return err
 	}
 	ttf, err := os.ReadFile(arialBold)
@@ -238,7 +240,33 @@ func (a *App) build() error {
 	if err := a.applyChoices(repl); err != nil {
 		return err
 	}
+	a.upscaleNote = ""
+	if !a.cfg.UpscaleOff {
+		// A machine that cannot run the model still gets a working game.
+		if err := a.applyUpscale(repl); err != nil {
+			a.upscaleNote = err.Error()
+			_ = os.WriteFile(filepath.Join(a.home, "upscale-error.txt"), []byte(err.Error()), 0o644)
+		}
+	}
 	return os.WriteFile(filepath.Join(game, "CI3Xmas.dat"), a.dat.Rebuild(repl), 0o644)
+}
+
+func (a *App) applyUpscale(repl map[string][]byte) error {
+	a.status = "מכין שדרוג AI..."
+	exe, err := mod.EnsureESRGAN(filepath.Join(a.home, "esrgan"))
+	if err != nil {
+		return err
+	}
+	up, err := mod.Upscale(a.dat, mod.UpscaleCandidates(a.dat), repl, exe, filepath.Join(a.home, "upscaled"), func(done, total int) {
+		a.status = fmt.Sprintf("משדרג גרפיקה: %d מתוך %d (רק בפעם הראשונה)", done, total)
+	})
+	if err != nil {
+		return err
+	}
+	for k, v := range up {
+		repl[k] = v
+	}
+	return nil
 }
 
 func (a *App) applyChoices(repl map[string][]byte) error {
@@ -319,11 +347,12 @@ const (
 	rowTheme
 	rowSound
 	rowVoice
+	rowUpscale
 	rowStart
 	numRows
 )
 
-var rowTitles = []string{"מצב משחק", "דמויות", "חבילת צלילים", "קריינות בעברית"}
+var rowTitles = []string{"מצב משחק", "דמויות", "חבילת צלילים", "קריינות בעברית", "שדרוג AI לגרפיקה"}
 
 func (a *App) options(r int) []string {
 	switch r {
@@ -341,7 +370,7 @@ func (a *App) options(r int) []string {
 			o = append(o, p.name)
 		}
 		return o
-	case rowVoice:
+	case rowVoice, rowUpscale:
 		return []string{"פעיל", "כבוי"}
 	}
 	return nil
@@ -359,6 +388,10 @@ func (a *App) value(r int) int {
 		if a.cfg.VoiceOff {
 			return 1
 		}
+	case rowUpscale:
+		if a.cfg.UpscaleOff {
+			return 1
+		}
 	}
 	return 0
 }
@@ -373,6 +406,8 @@ func (a *App) set(r, v int) {
 		a.cfg.Sound = v
 	case rowVoice:
 		a.cfg.VoiceOff = v == 1
+	case rowUpscale:
+		a.cfg.UpscaleOff = v == 1
 	}
 }
 
@@ -397,7 +432,7 @@ func (a *App) chips() []chip {
 			out = append(out, chip{l, float32(x - w), float32(y), float32(w), 56, r, i})
 			x -= w + 14
 		}
-		y += 96
+		y += 82
 	}
 	return out
 }
@@ -548,7 +583,7 @@ func (a *App) Draw(s *ebiten.Image) {
 	}
 	a.txt.Draw(s, label, float64(x+w/2), float64(y+h/2), 58, AlignCenter, white)
 	if a.building {
-		a.txt.Draw(s, a.status, 1830, 840, 30, AlignRight, gold)
+		a.txt.Draw(s, a.status, 980, 930, 30, AlignRight, gold)
 	}
 
 	if len(a.previews) > a.cfg.Theme {

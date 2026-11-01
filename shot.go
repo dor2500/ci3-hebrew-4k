@@ -2,8 +2,8 @@ package main
 
 import (
 	"image"
-	_ "image/png"
 	"image/png"
+	_ "image/png"
 	"os"
 
 	"github.com/hajimehoshi/ebiten/v2"

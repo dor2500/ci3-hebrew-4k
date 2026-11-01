@@ -141,7 +141,7 @@ func Spotlight(n int) *image.RGBA {
 		for x := 0; x < n; x++ {
 			d := math.Hypot(float64(x)+0.5-float64(n)/2, float64(y)+0.5-float64(n)/2) / (float64(n) / 2)
 			t := math.Max(0, math.Min(1, (d-0.4)/0.55))
-			img.SetRGBA(x, y, color.RGBA{0, 0, 0, uint8((t*t*(3-2*t))*247)})
+			img.SetRGBA(x, y, color.RGBA{0, 0, 0, uint8((t * t * (3 - 2*t)) * 247)})
 		}
 	}
 	return img

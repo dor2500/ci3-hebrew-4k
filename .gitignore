@@ -1,0 +1,7 @@
+dist/
+*.exe
+# Your own game files and packs stay on your machine.
+soundpacks/
+skins/
+ci3_path.txt
+CI3Xmas.*
